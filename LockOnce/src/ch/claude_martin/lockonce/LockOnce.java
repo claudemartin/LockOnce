@@ -21,17 +21,13 @@ import java.util.concurrent.locks.ReentrantLock;
  * It is recommended practice to <em>always</em> immediately follow a call to {@code lockOnce} with a {@code try} block, most typically in a
  * before/after construction such as:
  * 
- * <pre>
- * {
- * 	&#064;code
- * 	final LockOnce lo = new LockOnce();
- * 	if (lo.lockOnce()) try {
- * 		// ... method body
- * 	} finally {
- * 		lo.unlock();
- * 	}
- * }
- * </pre>
+ * <pre><tt>
+ * final LockOnce lo = new LockOnce();
+ * if (lo.lockOnce()) try {
+ *   // ... method body
+ * } finally {
+ *   lo.unlock();
+ * }</tt></pre>
  * 
  * @author Claude Martin */
 public class LockOnce {
