@@ -74,7 +74,9 @@ public class LockOnce {
 		if (interruptably) this.lock.lockInterruptibly();
 		else this.lock.lock();
 		try {
-			if (this.state == STATE_LOCKED) {
+			while (this.state == STATE_LOCKED) {
+				if (this.thread == Thread.currentThread())
+					throw new IllegalMonitorStateException("Multiple calls by the same thread are not permitted.");
 				if (interruptably) this.unlocked.await();
 				else this.unlocked.awaitUninterruptibly();
 			}

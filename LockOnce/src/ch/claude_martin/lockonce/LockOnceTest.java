@@ -97,6 +97,18 @@ public class LockOnceTest {
 	}
 
 	@Test
+	public void multipleCalls() throws InterruptedException {
+		try {
+			final LockOnce lo = new LockOnce();
+			Assert.assertTrue(lo.lockOnce()); // first one must be ok.
+			lo.lockOnce(); // second one makes no sense! it should fail quickly.
+			Assert.fail("Second call to LockOnce.lockOnce() did not throw any Exception :-(");
+		} catch (final IllegalMonitorStateException re) {
+			// ok!
+		}
+	}
+
+	@Test
 	public void unlock() throws InterruptedException {
 		try {
 			final LockOnce lo = new LockOnce();
