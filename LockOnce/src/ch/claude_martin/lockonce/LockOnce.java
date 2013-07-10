@@ -45,7 +45,6 @@ public class LockOnce {
 			if (this.state == STATE_LOCKED)
 				this.unlocked.await();
 			if (this.state == STATE_SPENT) return false;
-
 			this.state = STATE_LOCKED;
 			return true;
 		} finally {

@@ -9,18 +9,16 @@ import junit.framework.Assert;
 import org.junit.Test;
 
 public class LockOnceTest {
+	// This is not volatile. Changes must be visible on access only thanks to LockOnce.
 	static int	check	= 0;
 
 	@Test
 	public void test() throws InterruptedException {
-
 		final int loops = 50;
 		for (int i = 0; i < loops; i++) {
-
 			final int expected = check + 1;
-
 			final LockOnce lo = new LockOnce();
-			final int threads = 10;
+			final int threads = 20;
 			final ExecutorService threadPool = Executors.newFixedThreadPool(threads);
 
 			final Runnable runnable = new Runnable() {
@@ -54,6 +52,14 @@ public class LockOnceTest {
 		}
 
 		Assert.assertEquals("Wrong total amount", loops, check);
+
+		try {
+			final LockOnce lo = new LockOnce();
+			lo.unlock();
+			Assert.fail("LockOnce.unlock() did not throw any Exception :-(");
+		} catch (final RuntimeException re) {
+			// ok!
+		}
 	}
 
 }
