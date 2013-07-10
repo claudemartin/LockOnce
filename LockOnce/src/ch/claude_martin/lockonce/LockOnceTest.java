@@ -3,6 +3,7 @@ package ch.claude_martin.lockonce;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import junit.framework.Assert;
 
@@ -57,8 +58,27 @@ public class LockOnceTest {
 			final LockOnce lo = new LockOnce();
 			lo.unlock();
 			Assert.fail("LockOnce.unlock() did not throw any Exception :-(");
-		} catch (final RuntimeException re) {
+		} catch (final IllegalMonitorStateException re) {
 			// ok!
+		}
+		{
+			final LockOnce lo = new LockOnce();
+			final AtomicBoolean check = new AtomicBoolean(false);
+			final Thread thread = new Thread() {
+				@Override
+				public void run() {
+					try {
+						lo.unlock();
+						Assert.fail("LockOnce.unlock() did not throw any Exception :-(");
+					} catch (final IllegalMonitorStateException re) {
+						// ok!
+						check.set(true);
+					}
+				}
+			};
+			thread.start();
+			thread.join();
+			Assert.assertTrue(check.get());
 		}
 	}
 
