@@ -1,0 +1,59 @@
+package ch.claude_martin.lockonce;
+
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+
+import junit.framework.Assert;
+
+import org.junit.Test;
+
+public class LockOnceTest {
+	static int	check	= 0;
+
+	@Test
+	public void test() throws InterruptedException {
+
+		final int loops = 50;
+		for (int i = 0; i < loops; i++) {
+
+			final int expected = check + 1;
+
+			final LockOnce lo = new LockOnce();
+			final int threads = 10;
+			final ExecutorService threadPool = Executors.newFixedThreadPool(threads);
+
+			final Runnable runnable = new Runnable() {
+				@Override
+				public void run() {
+					try {
+						if (lo.lockOnce()) {
+							try {
+								final int copy = check;
+								Thread.sleep(100);
+								check = copy + 1;
+							} finally {
+								lo.unlock();
+							}
+						}
+						// value must be correct in any case:
+						Assert.assertEquals("Wrong value", expected, check);
+					} catch (final InterruptedException e) {
+						e.printStackTrace();
+					}
+				}
+			};
+
+			for (int j = 0; j < threads; j++) {
+				threadPool.submit(runnable);
+			}
+			threadPool.shutdown();
+			threadPool.awaitTermination(10, TimeUnit.SECONDS);
+
+			Assert.assertEquals("Wrong value", expected, check);
+		}
+
+		Assert.assertEquals("Wrong total amount", loops, check);
+	}
+
+}
