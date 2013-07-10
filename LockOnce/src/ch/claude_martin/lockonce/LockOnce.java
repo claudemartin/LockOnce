@@ -15,30 +15,33 @@ import java.util.concurrent.locks.ReentrantLock;
  * on demand holder</i></a>. The argument that it is broken is only true for JVM &lt;= 1.4, but not for newer versions.
  * 
  * <p>
- * The given solution in this class is safe on JVM 1.5+ thanks to the Java Memory Model.
+ * The given solution in this class is safe on JVM 1.5+ thanks to the Java Memory Model. But fields of a created singleton are still not
+ * safe unless final or volatile.
  * 
  * <p>
  * It is recommended practice to <em>always</em> immediately follow a call to {@code lockOnce} with a {@code try} block, most typically in a
  * before/after construction such as:
  * 
- * <pre><tt>
+ * <pre>
+ * <tt>
  * final LockOnce lo = new LockOnce();
  * if (lo.lockOnce()) try {
  *   // ... method body
  * } finally {
  *   lo.unlock();
- * }</tt></pre>
+ * }</tt>
+ * </pre>
  * 
  * @author Claude Martin */
 public class LockOnce {
 	/** Object was only created, no lock requests so far. */
-	private static final int		STATE_UNTAPPED	= 0;
+	private static final byte		STATE_UNTAPPED	= 0;
 	/** Currently locked. Some Thread is doing some critical work. It is supposed to call {@link #unlock()}. */
-	private static final int		STATE_LOCKED		= 1;
+	private static final byte		STATE_LOCKED		= 1;
 	/** This LockOnce is spent, all further calls to {@link #lockOnce()} will return <code>false</code> quickly. */
-	private static final int		STATE_SPENT			= 2;
+	private static final byte		STATE_SPENT			= 2;
 	/** Current state. */
-	private volatile int				state						= STATE_UNTAPPED;
+	private volatile byte				state						= STATE_UNTAPPED;
 	/** Used ReentrantLock-Object. */
 	private final ReentrantLock	lock						= new ReentrantLock();
 	/** Condition used to wait for a call to {@link #unlock()}. */
@@ -49,9 +52,7 @@ public class LockOnce {
 	 * 
 	 * Note: It is not necessarily the first invocation that get's <code>true</code>. But other threads will block untill {@link #unlock()} is
 	 * called the first time. A returned <code>false</code> is guaranteed to be returned after the receiver of <code>true</code> has finished
-	 * and changes all are visible.
-	 * 
-	 * @throws InterruptedException */
+	 * and changes all are visible. */
 	public boolean lockOnce() {
 		try {
 			return this.lockOnce(false);
@@ -105,5 +106,20 @@ public class LockOnce {
 		} finally {
 			this.lock.unlock();
 		}
+	}
+
+	@Override
+	public String toString() {
+		String strState;
+		if (this.state == STATE_LOCKED) {
+			strState = "locked";
+		} else if (this.state == STATE_SPENT) {
+			strState = "spent";
+		} else if (this.state == STATE_UNTAPPED) {
+			strState = "untapped";
+		} else {
+			strState = "faulty";
+		}
+		return "LockOnce[" + strState + "]";
 	}
 }
