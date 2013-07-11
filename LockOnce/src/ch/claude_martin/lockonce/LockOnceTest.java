@@ -1,5 +1,6 @@
 package ch.claude_martin.lockonce;
 
+import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -161,7 +162,7 @@ public class LockOnceTest {
 
     private static volatile PseudoSingleton instance = null;
 
-    static final LockOnce lockOnce = new LockOnce();
+    private static final LockOnce lockOnce = new LockOnce();
     /** This is just here to give an example on how to use this correctly! */
     public static PseudoSingleton getInstance() {
       if (lockOnce.lockOnce())
@@ -173,36 +174,62 @@ public class LockOnceTest {
       return instance;
     }
 
-    /** This is just here to show how its done with a double checked lock! */
-    public static PseudoSingleton getInstanceDCL() {
-      if (instance == null)
-        synchronized (PseudoSingleton.class) {
-          if (instance == null)
-            instance = new PseudoSingleton(THE_ANSWER_TO_LIFE_THE_UNIVERSE_AND_EVERYTHING);
-        }
-      return instance;
+    // This should be much nicer in Java 8 with lambda expressions:
+    private static Callable<PseudoSingleton> callable = new Callable<PseudoSingleton>() {
+      @Override public PseudoSingleton call() throws Exception {
+        return new PseudoSingleton(THE_ANSWER_TO_LIFE_THE_UNIVERSE_AND_EVERYTHING);
+      }
+    };
+    /**
+     * This is just here to give an example on how to use this correctly!
+     * */
+    public static PseudoSingleton getInstanceCallable() throws Exception {
+      return instance = lockOnce.call(callable, instance);
     }
 
-    private static final class InstanceHolder {
-      public static PseudoSingleton instanceHolder = 
-          new PseudoSingleton(THE_ANSWER_TO_LIFE_THE_UNIVERSE_AND_EVERYTHING);
-    }
+    // This should be much nicer in Java 8 with lambda expressions:
+    static Runnable runnable = new Runnable() {
+      @Override public void run() {
+        instance = new PseudoSingleton(THE_ANSWER_TO_LIFE_THE_UNIVERSE_AND_EVERYTHING);
+      }};
+      /**
+       * This is just here to give an example on how to use this correctly!
+       * */
+      public static PseudoSingleton getInstanceRunnable() throws Exception {
+        lockOnce.run(runnable);
+        return instance;
+      }
 
-    /** This is just here to show how its done with a nested class as a holder! */
-    public static PseudoSingleton getInstanceHolder() {
-      return InstanceHolder.instanceHolder;
-    }
+      /** This is just here to show how its done with a double checked lock! */
+      public static PseudoSingleton getInstanceDCL() {
+        if (instance == null)
+          synchronized (PseudoSingleton.class) {
+            if (instance == null)
+              instance = new PseudoSingleton(THE_ANSWER_TO_LIFE_THE_UNIVERSE_AND_EVERYTHING);
+          }
+        return instance;
+      }
 
-    public PseudoSingleton(final int value) {
-      this.foo1 = value;
-    }
+      private static final class InstanceHolder {
+        public static PseudoSingleton instanceHolder = 
+            new PseudoSingleton(THE_ANSWER_TO_LIFE_THE_UNIVERSE_AND_EVERYTHING);
+      }
 
-    public synchronized int getFoo3() {
-      return this.foo3;
-    }
+      /** This is just here to show how its done with a nested class as a holder! */
+      public static PseudoSingleton getInstanceHolder() {
+        return InstanceHolder.instanceHolder;
+      }
 
-    public synchronized void setFoo3(final int foo3) {
-      this.foo3 = foo3;
-    }
+      public PseudoSingleton(final int value) {
+        this.foo1 = value;
+      }
+
+      public synchronized int getFoo3() {
+        return this.foo3;
+      }
+
+      public synchronized void setFoo3(final int foo3) {
+        this.foo3 = foo3;
+      }
   }
 }

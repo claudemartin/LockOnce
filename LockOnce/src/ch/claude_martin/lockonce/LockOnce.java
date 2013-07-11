@@ -1,5 +1,6 @@
 package ch.claude_martin.lockonce;
 
+import java.util.concurrent.Callable;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
 
@@ -145,6 +146,36 @@ public class LockOnce {
     } finally {
       this.lock.unlock();
     }
+  }
+
+  /**
+   * Runs the runnable only once.
+   */
+  public void run(final Runnable runnable) {
+    if (this.lockOnce())
+      try {
+        runnable.run();
+      } finally {
+        this.unlock();
+      }
+  }
+
+  /**
+   * Calls the callable only once.
+   * 
+   * @returns If this Lock-Once is not already spent and no exception is thrown
+   *          then the return value of the callable is returned. If it is spent,
+   *          then the given <code>orElse</code> is returned.
+   */
+  public <T> T call(final Callable<T> callable, final T orElse)
+      throws Exception {
+    if (this.lockOnce())
+      try {
+        return callable.call();
+      } finally {
+        this.unlock();
+      }
+    return orElse;
   }
 
   @Override
