@@ -161,15 +161,14 @@ public class LockOnceTest {
 
     private static volatile PseudoSingleton instance = null;
 
+    static final LockOnce lockOnce = new LockOnce();
     /** This is just here to give an example on how to use this correctly! */
     public static PseudoSingleton getInstance() {
-      final LockOnce lo = new LockOnce();
-      if (lo.lockOnce())
+      if (lockOnce.lockOnce())
         try {
-          instance = new PseudoSingleton(
-              THE_ANSWER_TO_LIFE_THE_UNIVERSE_AND_EVERYTHING);
+          instance = new PseudoSingleton(THE_ANSWER_TO_LIFE_THE_UNIVERSE_AND_EVERYTHING);
         } finally {
-          lo.unlock();
+          lockOnce.unlock();
         }
       return instance;
     }
@@ -179,15 +178,14 @@ public class LockOnceTest {
       if (instance == null)
         synchronized (PseudoSingleton.class) {
           if (instance == null)
-            instance = new PseudoSingleton(
-                THE_ANSWER_TO_LIFE_THE_UNIVERSE_AND_EVERYTHING);
+            instance = new PseudoSingleton(THE_ANSWER_TO_LIFE_THE_UNIVERSE_AND_EVERYTHING);
         }
       return instance;
     }
 
     private static final class InstanceHolder {
-      public static PseudoSingleton instanceHolder = new PseudoSingleton(
-          THE_ANSWER_TO_LIFE_THE_UNIVERSE_AND_EVERYTHING);
+      public static PseudoSingleton instanceHolder = 
+          new PseudoSingleton(THE_ANSWER_TO_LIFE_THE_UNIVERSE_AND_EVERYTHING);
     }
 
     /** This is just here to show how its done with a nested class as a holder! */
