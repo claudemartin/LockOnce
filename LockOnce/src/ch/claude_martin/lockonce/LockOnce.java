@@ -29,17 +29,17 @@ import java.util.concurrent.locks.ReentrantLock;
  * <p>
  * It is recommended practice to <em>always</em> immediately follow a call to
  * {@code lockOnce} with a {@code try} block, most typically in a before/after
- * construction such as: 
+ * construction such as:
  * 
  * <pre><tt>
  * final LockOnce lo = new LockOnce();
  * if (lo.lockOnce()) try {
- *   // ... method body
+ *   // ... critical block
  * } finally {
  *   lo.unlock();
  * }</tt></pre>
  * 
- * @author Claude Martin
+ * @author Claude Martin, <a href="https://github.com/claudemartin/LockOnce/">https://github.com/claudemartin/LockOnce/</a>
  */
 public class LockOnce {
   /** Object was only created, no lock requests so far. */
