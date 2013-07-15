@@ -1,6 +1,5 @@
 package ch.claude_martin.lockonce;
 
-import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -172,19 +171,6 @@ public class LockOnceTest {
           lockOnce.unlock();
         }
       return instance;
-    }
-
-    // This should be much nicer in Java 8 with lambda expressions:
-    private static Callable<PseudoSingleton> callable = new Callable<PseudoSingleton>() {
-      @Override public PseudoSingleton call() throws Exception {
-        return new PseudoSingleton(THE_ANSWER_TO_LIFE_THE_UNIVERSE_AND_EVERYTHING);
-      }
-    };
-    /**
-     * This is just here to give an example on how to use this correctly!
-     * */
-    public static PseudoSingleton getInstanceCallable() throws Exception {
-      return instance = lockOnce.call(callable, instance);
     }
 
     // This should be much nicer in Java 8 with lambda expressions:

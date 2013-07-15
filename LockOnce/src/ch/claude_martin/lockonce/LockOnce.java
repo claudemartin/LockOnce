@@ -92,11 +92,11 @@ public class LockOnce {
     return this.lockOnce(true);
   }
 
-  private boolean lockOnce(final boolean interruptably)
+  private boolean lockOnce(final boolean interruptibly)
       throws InterruptedException {
     if (this.state == STATE_SPENT)
       return false;
-    if (interruptably)
+    if (interruptibly)
       this.lock.lockInterruptibly();
     else
       this.lock.lock();
@@ -105,7 +105,7 @@ public class LockOnce {
         if (this.thread == Thread.currentThread())
           throw new IllegalMonitorStateException(
               "Multiple calls by the same thread are not permitted.");
-        if (interruptably)
+        if (interruptibly)
           this.unlocked.await();
         else
           this.unlocked.awaitUninterruptibly();
@@ -176,6 +176,25 @@ public class LockOnce {
         this.unlock();
       }
     return orElse;
+  }
+
+  /**
+   * Calls the callable only once.
+   * 
+   * @returns If this Lock-Once is not already spent and no exception is thrown
+   *          then the return value of the callable is returned. If it is spent,
+   *          then the given <code>orElse</code> is called and its return value
+   *          returned.
+   */
+  public <T> T call(final Callable<T> callable, final Callable<T> orElse)
+      throws Exception {
+    if (this.lockOnce())
+      try {
+        return callable.call();
+      } finally {
+        this.unlock();
+      }
+    return orElse.call();
   }
 
   @Override
