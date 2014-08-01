@@ -1,14 +1,22 @@
 package ch.claude_martin.lockonce;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
+
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Supplier;
+import java.util.stream.IntStream;
 
 import org.junit.Assert;
 import org.junit.Test;
 
+@SuppressWarnings("static-method")
 public class LockOnceTest {
   // any good code holds this constant:
   static final int THE_ANSWER_TO_LIFE_THE_UNIVERSE_AND_EVERYTHING = 42;
@@ -21,7 +29,6 @@ public class LockOnceTest {
   // a singleton is still be recommended to declared this as volatile!
   static volatile PseudoSingleton singleton = null;
 
-  @SuppressWarnings("static-method")
   @Test
   public void loops() throws Throwable {
     final int loops = 20;
@@ -36,57 +43,47 @@ public class LockOnceTest {
       // runnable1 doesn't really test the code but the JVM, which usually is
       // not the idea of JUnit tests.
       // But this is just to show how this really is thread safe.
-      final Runnable runnable1 = new Runnable() {
-        @Override
-        public void run() {
-          try {
-            for (int j = 0; singleton == null || !singletonIsPoppulated.get()
-                && j++ < 100;)
-              Thread.sleep(100);
-            // access to the fake "singleton" without using LockOnce:
-            Assert.assertTrue("runnable1: Wrong value (foo1)",
-                singleton.foo1 != 0);
-            Assert.assertTrue("runnable1: Wrong value (foo2)",
-                singleton.foo2 != 0);
-            Assert.assertTrue("runnable1: Wrong value (foo3)",
-                singleton.getFoo3() != 0);
-          } catch (final Throwable e) {
-            exceptionThrown.set(e);
-          }
+      final Runnable runnable1 = () -> {
+        try {
+          for (int j = 0; singleton == null || !singletonIsPoppulated.get()
+              && j++ < 100;)
+            Thread.sleep(100);
+          // access to the fake "singleton" without using LockOnce:
+          assertTrue("runnable1: Wrong value (foo1)", singleton.foo1 != 0);
+          assertTrue("runnable1: Wrong value (foo2)", singleton.foo2 != 0);
+          assertTrue("runnable1: Wrong value (foo3)", singleton.getFoo3() != 0);
+        } catch (final Throwable e) {
+          exceptionThrown.set(e);
         }
       };
       // runnable2 actually tests lockOnce():
-      final Runnable runnable2 = new Runnable() {
-        @Override
-        public void run() {
-          try {
-            for (int j = 0; j < 10; j++)
-              lo.toString(); // Just to keep the Threads busy.
-            if (lo.lockOnce())
-              try {
-                final int copy = check;
-                singleton = new PseudoSingleton(check + 1);
-                Thread.sleep(50);
-                singleton.foo2 = check + 1;
-                Thread.sleep(50);
-                singleton.setFoo3(check + 1);
-                singletonIsPoppulated.set(true);
-                check = copy + 1;
-              } finally {
-                lo.unlock();
-              }
-            // value must be correct in any case:
-            Assert.assertEquals("runnable2: Wrong value (check)", expected,
-                check);
-            Assert.assertEquals("runnable2: Wrong value (foo1)", expected,
-                singleton.foo1);
-            Assert.assertEquals("runnable2: Wrong value (foo2)", expected,
-                singleton.foo2);
-            Assert.assertEquals("runnable2: Wrong value (foo3)", expected,
-                singleton.getFoo3());
-          } catch (final Throwable e) {
-            exceptionThrown.set(e);
-          }
+      final Runnable runnable2 = () -> {
+        try {
+          for (int j = 0; j < 10; j++)
+            lo.toString(); // Just to keep the Threads busy.
+          if (lo.lockOnce())
+            try {
+              final int copy = check;
+              singleton = new PseudoSingleton(check + 1);
+              Thread.sleep(50);
+              singleton.foo2 = check + 1;
+              Thread.sleep(50);
+              singleton.setFoo3(check + 1);
+              singletonIsPoppulated.set(true);
+              check = copy + 1;
+            } finally {
+              lo.unlock();
+            }
+          // value must be correct in any case:
+          assertEquals("runnable2: Wrong value (check)", expected, check);
+          assertEquals("runnable2: Wrong value (foo1)", expected,
+              singleton.foo1);
+          assertEquals("runnable2: Wrong value (foo2)", expected,
+              singleton.foo2);
+          assertEquals("runnable2: Wrong value (foo3)", expected,
+              singleton.getFoo3());
+        } catch (final Throwable e) {
+          exceptionThrown.set(e);
         }
       };
 
@@ -98,11 +95,11 @@ public class LockOnceTest {
       threadPool.awaitTermination(10, TimeUnit.SECONDS);
       if (exceptionThrown.get() != null)
         throw exceptionThrown.get();
-      Assert.assertEquals("Wrong value", expected, check);
+      assertEquals("Wrong value", expected, check);
       singleton = null;
     }
 
-    Assert.assertEquals("Wrong total amount", loops
+    assertEquals("Wrong total amount", loops
         + THE_ANSWER_TO_LIFE_THE_UNIVERSE_AND_EVERYTHING, check);
   }
 
@@ -111,7 +108,7 @@ public class LockOnceTest {
   public void multipleCalls() {
     try {
       final LockOnce lo = new LockOnce();
-      Assert.assertTrue(lo.lockOnce()); // first one must be ok.
+      assertTrue(lo.lockOnce()); // first one must be ok.
       lo.lockOnce(); // second one makes no sense! it should fail quickly.
       Assert
       .fail("Second call to LockOnce.lockOnce() did not throw any Exception :-(");
@@ -126,7 +123,7 @@ public class LockOnceTest {
     try {
       final LockOnce lo = new LockOnce();
       lo.unlock();
-      Assert.fail("LockOnce.unlock() did not throw any Exception :-(");
+      fail("LockOnce.unlock() did not throw any Exception :-(");
     } catch (final IllegalMonitorStateException re) {
       // ok!
     }
@@ -139,7 +136,7 @@ public class LockOnceTest {
         public void run() {
           try {
             lo.unlock();
-            Assert.fail("LockOnce.unlock() did not throw any Exception :-(");
+            fail("LockOnce.unlock() did not throw any Exception :-(");
           } catch (final IllegalMonitorStateException re) {
             // ok!
             check2.set(true);
@@ -148,13 +145,13 @@ public class LockOnceTest {
       };
       thread.start();
       thread.join();
-      Assert.assertTrue(check2.get());
+      assertTrue(check2.get());
     }
   }
 
   static final class PseudoSingleton {
-    // All is volatile, final or synchronized. Visibility will be guaranteed by
-    // JVM.
+    // All is volatile, final or synchronized.
+    // Visibility will be guaranteed by JVM.
     final int foo1;
     volatile int foo2;
     private/* synchronized */int foo3;
@@ -162,60 +159,76 @@ public class LockOnceTest {
     private static volatile PseudoSingleton instance = null;
 
     private static final LockOnce lockOnce = new LockOnce();
+
     /** This is just here to give an example on how to use this correctly! */
     public static PseudoSingleton getInstance() {
       if (lockOnce.lockOnce())
         try {
-          instance = new PseudoSingleton(THE_ANSWER_TO_LIFE_THE_UNIVERSE_AND_EVERYTHING);
+          instance = new PseudoSingleton(
+              THE_ANSWER_TO_LIFE_THE_UNIVERSE_AND_EVERYTHING);
         } finally {
           lockOnce.unlock();
         }
       return instance;
     }
 
-    // This should be much nicer in Java 8 with lambda expressions:
-    static Runnable runnable = new Runnable() {
-      @Override public void run() {
-        instance = new PseudoSingleton(THE_ANSWER_TO_LIFE_THE_UNIVERSE_AND_EVERYTHING);
-      }};
-      /**
-       * This is just here to give an example on how to use this correctly!
-       * */
-      public static PseudoSingleton getInstanceRunnable() throws Exception {
-        lockOnce.run(runnable);
-        return instance;
-      }
+    static Runnable runnable = () -> {
+      instance = new PseudoSingleton(
+          THE_ANSWER_TO_LIFE_THE_UNIVERSE_AND_EVERYTHING);
+    };
 
-      /** This is just here to show how its done with a double checked lock! */
-      public static PseudoSingleton getInstanceDCL() {
-        if (instance == null)
-          synchronized (PseudoSingleton.class) {
-            if (instance == null)
-              instance = new PseudoSingleton(THE_ANSWER_TO_LIFE_THE_UNIVERSE_AND_EVERYTHING);
-          }
-        return instance;
-      }
+    /**
+     * This is just here to give an example on how to use this correctly!
+     * */
+    public static PseudoSingleton getInstanceRunnable() throws Exception {
+      lockOnce.run(runnable);
+      return instance;
+    }
 
-      private static final class InstanceHolder {
-        public static PseudoSingleton instanceHolder = 
-            new PseudoSingleton(THE_ANSWER_TO_LIFE_THE_UNIVERSE_AND_EVERYTHING);
-      }
+    /** This is just here to show how its done with a double checked lock! */
+    public static PseudoSingleton getInstanceDCL() {
+      if (instance == null)
+        synchronized (PseudoSingleton.class) {
+          if (instance == null)
+            instance = new PseudoSingleton(
+                THE_ANSWER_TO_LIFE_THE_UNIVERSE_AND_EVERYTHING);
+        }
+      return instance;
+    }
 
-      /** This is just here to show how its done with a nested class as a holder! */
-      public static PseudoSingleton getInstanceHolder() {
-        return InstanceHolder.instanceHolder;
-      }
+    private static final class InstanceHolder {
+      public static PseudoSingleton instanceHolder = new PseudoSingleton(
+          THE_ANSWER_TO_LIFE_THE_UNIVERSE_AND_EVERYTHING);
+    }
 
-      public PseudoSingleton(final int value) {
-        this.foo1 = value;
-      }
+    /** This is just here to show how its done with a nested class as a holder! */
+    public static PseudoSingleton getInstanceHolder() {
+      return InstanceHolder.instanceHolder;
+    }
 
-      public synchronized int getFoo3() {
-        return this.foo3;
-      }
+    public PseudoSingleton(final int value) {
+      this.foo1 = value;
+    }
 
-      public synchronized void setFoo3(final int foo3) {
-        this.foo3 = foo3;
-      }
+    public synchronized int getFoo3() {
+      return this.foo3;
+    }
+
+    public synchronized void setFoo3(final int foo3) {
+      this.foo3 = foo3;
+    }
+  }
+
+  @Test
+  public void testLazy() {
+    final AtomicInteger i = new AtomicInteger(0);
+    final Supplier<String> s = () -> {
+      i.incrementAndGet();
+      return "hello";
+    };
+    final Supplier<String> lazy = Lazy.of(s);
+    IntStream.range(0, 40).parallel().forEach(n -> lazy.get());
+    assertEquals(1, i.get());
+    assertEquals("hello", lazy.get());
   }
 }

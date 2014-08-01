@@ -3,6 +3,7 @@ package ch.claude_martin.lockonce;
 import java.util.concurrent.Callable;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.function.Supplier;
 
 /**
  * The <code>LockOnce</code> class represents an object used to guard some block
@@ -32,15 +33,19 @@ import java.util.concurrent.locks.ReentrantLock;
  * {@code lockOnce} with a {@code try} block, most typically in a before/after
  * construction such as:
  * 
- * <pre><tt>
+ * <pre>
+ * <tt>
  * final LockOnce lo = new LockOnce();
  * if (lo.lockOnce()) try {
  *   // ... critical block
  * } finally {
  *   lo.unlock();
- * }</tt></pre>
+ * }</tt>
+ * </pre>
  * 
- * @author Claude Martin, <a href="https://github.com/claudemartin/LockOnce/">https://github.com/claudemartin/LockOnce/</a>
+ * @author Claude Martin, <a
+ *         href="https://github.com/claudemartin/LockOnce/">https
+ *         ://github.com/claudemartin/LockOnce/</a>
  */
 public class LockOnce {
   /** Object was only created, no lock requests so far. */
@@ -197,14 +202,33 @@ public class LockOnce {
     return orElse.call();
   }
 
+  /**
+   * Gets a value from a supplier only once.
+   * 
+   * @returns If this Lock-Once is not already spent then the return value of
+   *          the callable is returned. If it is spent, then the given
+   *          <code>orElse</code> is called and its return value returned.
+   */
+  public <T> T get(final Supplier<T> supplier, final Supplier<T> orElse)
+      throws Exception {
+    if (this.lockOnce())
+      try {
+        return supplier.get();
+      } finally {
+        this.unlock();
+      }
+    return orElse.get();
+  }
+
   @Override
   public String toString() {
-    String strState;
-    if (this.state == STATE_LOCKED)
+    final String strState;
+    final byte _state = this.state;
+    if (_state == STATE_LOCKED)
       strState = "locked";
-    else if (this.state == STATE_SPENT)
+    else if (_state == STATE_SPENT)
       strState = "spent";
-    else if (this.state == STATE_UNTAPPED)
+    else if (_state == STATE_UNTAPPED)
       strState = "untapped";
     else
       strState = "faulty";
