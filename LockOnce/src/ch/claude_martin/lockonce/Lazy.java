@@ -37,7 +37,7 @@ public final class Lazy<T> implements Supplier<T> {
    * Creates new instance of Lazy. You provide a supplier and get one in return.
    * But the element is only created once.
    * 
-   * @param T
+   * @param <T>
    *          Type of the element that is created lazily.
    * @param supplier
    *          The action to initialize an instance of T.
@@ -53,7 +53,7 @@ public final class Lazy<T> implements Supplier<T> {
    * until the JVM shuts down. The result (if it was created) might need some
    * clean up.
    * 
-   * @param T
+   * @param <T>
    *          Type of the element that is created lazily.
    * @param supplier
    *          The action to initialize an instance of T.
@@ -79,12 +79,41 @@ public final class Lazy<T> implements Supplier<T> {
   }
 
   /**
-   * Gets the result. Returns the existing value if it exists, or invokes the
+   * Convenience method to register a closeable resource. A lazy value often
+   * exists until the JVM shuts down. The result (if it was created) will be
+   * closed. Exceptions thrown by {@link AutoCloseable#close()} are ignored.
+   * 
+   * @param <T>
+   *          Type of the resource that is created lazily.
+   * @param supplier
+   *          The action to initialize an instance of T.
+   * @throws SecurityException
+   *           If a security manager is present and it denies
+   *           <tt>{@link RuntimePermission}("shutdownHooks")</tt>
+   * 
+   * @return A new supplier of a resource that will be closed at shutdown.
+   */
+  public static <T extends AutoCloseable> Lazy<T> ofAutoCloseable(
+      final Supplier<T> supplier) {
+    requireNonNull(supplier, "supplier");
+    return of(supplier, t -> {
+      try {
+        t.close();
+      } catch (final Exception e) {
+        // JVM is shutting down. No way to process this. :-(
+      }
+    });
+
+  }
+
+  /**
+   * Gets the result. Returns the value if it exists already, or invokes the
    * supplier of this instance to get it. An existing value can be returned
    * rather fast. But it has to access volatile fields. Inside a scope this
    * method should only be invoked once (assigned to a local variable).
    * <p>
-   * The returned value can be null.
+   * The returned value can be null. use {@link #opt()} to get an
+   * {@link Optional} instead.
    */
   @Override
   public T get() {

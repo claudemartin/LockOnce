@@ -1,6 +1,8 @@
 package ch.claude_martin.lockonce;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
@@ -14,9 +16,18 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 import java.util.stream.IntStream;
 
-import org.junit.Assert;
 import org.junit.Test;
 
+/**
+ * This is a mix of tests and demo code. Some tests are difficult because
+ * multiple threads are needed.
+ * 
+ * <p>
+ * {@link PseudoSingleton} shows how a singleton can use {@link LockOnce}. But
+ * there is also {@link Lazy}, which is much simpler to use for that.
+ * 
+ * @author Claude Martin
+ */
 @SuppressWarnings("static-method")
 public class LockOnceTest {
   // any good code holds this constant:
@@ -38,8 +49,7 @@ public class LockOnceTest {
       final LockOnce lo = new LockOnce();
       final int threads = 20;
       final ExecutorService threadPool = Executors.newFixedThreadPool(threads);
-      final AtomicReference<Throwable> exceptionThrown = new AtomicReference<>(
-          null);
+      final AtomicReference<Throwable> exceptionThrown = new AtomicReference<>();
       final AtomicBoolean singletonIsPoppulated = new AtomicBoolean(false);
       // runnable1 doesn't really test the code but the JVM, which usually is
       // not the idea of JUnit tests.
@@ -64,6 +74,7 @@ public class LockOnceTest {
             lo.toString(); // Just to keep the Threads busy.
           if (lo.lockOnce())
             try {
+              // critical block (intentionally made as unsafe as possible ):
               final int copy = check;
               singleton = new PseudoSingleton(check + 1);
               Thread.sleep(50);
@@ -76,13 +87,14 @@ public class LockOnceTest {
               lo.unlock();
             }
           // value must be correct in any case:
-          assertEquals("runnable2: Wrong value (check)", expected, check);
-          assertEquals("runnable2: Wrong value (foo1)", expected,
-              singleton.foo1);
-          assertEquals("runnable2: Wrong value (foo2)", expected,
-              singleton.foo2);
-          assertEquals("runnable2: Wrong value (foo3)", expected,
-              singleton.getFoo3());
+          assertEquals("runnable2: Wrong value (check)", //
+              expected, check);
+          assertEquals("runnable2: Wrong value (foo1)", //
+              expected, singleton.foo1);
+          assertEquals("runnable2: Wrong value (foo2)", //
+              expected, singleton.foo2);
+          assertEquals("runnable2: Wrong value (foo3)", //
+              expected, singleton.getFoo3());
         } catch (final Throwable e) {
           exceptionThrown.set(e);
         }
@@ -110,8 +122,7 @@ public class LockOnceTest {
       final LockOnce lo = new LockOnce();
       assertTrue(lo.lockOnce()); // first one must be ok.
       lo.lockOnce(); // second one makes no sense! it should fail quickly.
-      Assert
-      .fail("Second call to LockOnce.lockOnce() did not throw any Exception :-(");
+      fail("Second call to LockOnce.lockOnce() did not throw any Exception :-(");
     } catch (final IllegalMonitorStateException re) {
       // ok!
     }
@@ -177,7 +188,8 @@ public class LockOnceTest {
     };
 
     /**
-     * This is just here to give an example on how to use this correctly!
+     * This is just here to give an example on how to use this correctly! But
+     * check out the code of {@link Lazy} if you actually want to use it.
      * */
     public static PseudoSingleton getInstanceRunnable() throws Exception {
       lockOnce.run(runnable);
@@ -246,6 +258,10 @@ public class LockOnceTest {
         assertEquals(n, i.get());
         assertSame(hello, lazy2.get());
       }
+      // null is a valid value:
+      final Lazy<String> lazy3 = Lazy.of(() -> null);
+      assertNull(lazy3.get());
+      assertFalse(lazy3.opt().isPresent());
     }
   }
 }

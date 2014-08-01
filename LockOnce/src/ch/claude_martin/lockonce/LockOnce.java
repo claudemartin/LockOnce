@@ -43,9 +43,8 @@ import java.util.function.Supplier;
  * }</tt>
  * </pre>
  * 
- * @author Claude Martin, <a
- *         href="https://github.com/claudemartin/LockOnce/">https
- *         ://github.com/claudemartin/LockOnce/</a>
+ * @author Claude Martin, <a href="https://github.com/claudemartin/LockOnce/"
+ *         >https://github.com/claudemartin/LockOnce/</a>
  */
 public class LockOnce {
   /** Object was only created, no lock requests so far. */
