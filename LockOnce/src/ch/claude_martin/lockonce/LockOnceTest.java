@@ -1,6 +1,7 @@
 package ch.claude_martin.lockonce;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -103,7 +104,6 @@ public class LockOnceTest {
         + THE_ANSWER_TO_LIFE_THE_UNIVERSE_AND_EVERYTHING, check);
   }
 
-  @SuppressWarnings("static-method")
   @Test
   public void multipleCalls() {
     try {
@@ -117,7 +117,6 @@ public class LockOnceTest {
     }
   }
 
-  @SuppressWarnings("static-method")
   @Test
   public void unlock() throws InterruptedException {
     try {
@@ -219,16 +218,34 @@ public class LockOnceTest {
     }
   }
 
+  static class Foo {
+    public Foo() {
+    }
+  }
+
+  /** @see #testLazy */
+  final Supplier<Foo> lazy = Lazy.of(Foo::new);
+
+  /** Demo and Test of {@link Lazy}. */
+  @SuppressWarnings("unused")
   @Test
   public void testLazy() {
-    final AtomicInteger i = new AtomicInteger(0);
-    final Supplier<String> s = () -> {
-      i.incrementAndGet();
-      return "hello";
-    };
-    final Supplier<String> lazy = Lazy.of(s);
-    IntStream.range(0, 40).parallel().forEach(n -> lazy.get());
-    assertEquals(1, i.get());
-    assertEquals("hello", lazy.get());
+    { // Demo:
+      final Foo foo = this.lazy.get();
+    }
+    {// Test:
+      final String hello = "hello";
+      final AtomicInteger i = new AtomicInteger(0);
+      final Supplier<String> s = () -> {
+        i.incrementAndGet();
+        return hello;
+      };
+      for (int n = 1; n <= 1000; n++) {
+        final Supplier<String> lazy2 = Lazy.of(s);
+        IntStream.range(0, 8).parallel().forEach(x -> lazy2.get());
+        assertEquals(n, i.get());
+        assertSame(hello, lazy2.get());
+      }
+    }
   }
 }

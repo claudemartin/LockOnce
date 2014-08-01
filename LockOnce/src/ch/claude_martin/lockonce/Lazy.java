@@ -1,7 +1,29 @@
 package ch.claude_martin.lockonce;
 
+import static java.util.Objects.requireNonNull;
+
+import java.util.Optional;
+import java.util.function.Consumer;
 import java.util.function.Supplier;
 
+/**
+ * This allows easy setup of "lazy initialization". This is thread-safe.
+ * <p>
+ * <p>
+ * Example code: <blockquote><code>
+ * <pre>
+ * // declaration of lazy field:
+ * final Supplier&lt;Foo&gt; lazy = Lazy.of(Foo::new);  
+ * // Access to the data:
+ * Foo foo = lazy.get();
+ * </pre>
+ * </code></blockquote>
+ * 
+ * @param <T>
+ *          Type of the element that is created lazily.
+ * 
+ * @author Claude Martin
+ */
 public final class Lazy<T> implements Supplier<T> {
   private final LockOnce lock = new LockOnce();
   private final Supplier<T> supplier;
@@ -11,12 +33,63 @@ public final class Lazy<T> implements Supplier<T> {
     this.supplier = supplier;
   }
 
-  public static <T> Supplier<T> of(final Supplier<T> supplier) {
+  /**
+   * Creates new instance of Lazy. You provide a supplier and get one in return.
+   * But the element is only created once.
+   * 
+   * @param T
+   *          Type of the element that is created lazily.
+   * @param supplier
+   *          The action to initialize an instance of T.
+   * @return A new supplier that will always return the same element.
+   */
+  public static <T> Lazy<T> of(final Supplier<T> supplier) {
+    requireNonNull(supplier, "supplier");
     return new Lazy<>(supplier);
   }
 
+  /**
+   * Convenience method to register a "destructor". A lazy value often exists
+   * until the JVM shuts down. The result (if it was created) might need some
+   * clean up.
+   * 
+   * @param T
+   *          Type of the element that is created lazily.
+   * @param supplier
+   *          The action to initialize an instance of T.
+   * @param destructor
+   *          Cleanup code to be run at shutdown.
+   * @throws SecurityException
+   *           If a security manager is present and it denies
+   *           <tt>{@link RuntimePermission}("shutdownHooks")</tt>
+   * 
+   * @return A new supplier that will be cleaned at shutdown.
+   */
+  public static <T> Lazy<T> of(final Supplier<T> supplier,
+      final Consumer<T> destructor) {
+    requireNonNull(supplier, "supplier");
+    requireNonNull(destructor, "destructor");
+    final Lazy<T> lazy = new Lazy<>(supplier);
+    Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+      final T v = lazy.getValue();
+      if (v != null)
+        destructor.accept(v);
+    }, "Lazy-Destructor"));
+    return lazy;
+  }
+
+  /**
+   * Gets the result. Returns the existing value if it exists, or invokes the
+   * supplier of this instance to get it. An existing value can be returned
+   * rather fast. But it has to access volatile fields. Inside a scope this
+   * method should only be invoked once (assigned to a local variable).
+   * <p>
+   * The returned value can be null.
+   */
   @Override
   public T get() {
+    // equivalent, but a bit slower:
+    // this.lock.run(() -> this.value = this.supplier.get());
     if (this.lock.lockOnce())
       try {
         this.value = this.supplier.get();
@@ -26,4 +99,16 @@ public final class Lazy<T> implements Supplier<T> {
     return this.value;
   }
 
+  /**
+   * Result as an {@link Optional}.
+   * 
+   * @see #get()
+   */
+  public Optional<T> opt() {
+    return Optional.ofNullable(this.get());
+  }
+
+  T getValue() {
+    return this.value;
+  }
 }
