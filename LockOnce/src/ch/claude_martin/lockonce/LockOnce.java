@@ -233,4 +233,14 @@ public class LockOnce {
       strState = "faulty";
     return "LockOnce[" + strState + "]";
   }
+
+  /**
+   * Indivates whether this instance is already spent (locked and unlocked). If
+   * not it could be locked or untapped. If this returns <code>false</code>
+   * there is no guarantee that the instance is no spent when this method
+   * returns, but is was not spent before it was invoked.
+   */
+  public boolean isSpent() {
+    return this.state == STATE_SPENT;
+  }
 }

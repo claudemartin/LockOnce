@@ -137,6 +137,30 @@ public final class Lazy<T> implements Supplier<T> {
     return Optional.ofNullable(this.get());
   }
 
+  /**
+   * Returns the value if it already exists. Access to the result without
+   * invoking the code to genreate the value. Instead an empty optional is
+   * returned. However, if the value is <code>null</code> you also get an empty
+   * Optional.
+   * 
+   * @see #get()
+   * @see #opt()
+   * @see #isDone()
+   * @return an optional holding the value if present, or an empty optional if
+   *         not yet present.
+   */
+  public Optional<T> peek() {
+    return Optional.ofNullable(this.getValue());
+  }
+
+  /**
+   * Indicates whether the lazy value is already available. This always returns
+   * quickly.
+   */
+  public boolean isDone() {
+    return this.lock.isSpent();
+  }
+
   T getValue() {
     return this.value;
   }
